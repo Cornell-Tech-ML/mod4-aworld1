@@ -1,12 +1,10 @@
 from typing import Tuple
 
-from . import operators
 from .autodiff import Context
-from .fast_ops import FastOps
 from .tensor import Tensor
-from .tensor_functions import Function, rand, tensor
+from .tensor_functions import Function, rand
 
-from typing import Tuple, Optional
+from typing import Optional
 
 
 # List of functions in this file:
@@ -37,7 +35,7 @@ def tile(input: Tensor, kernel: Tuple[int, int]) -> Tuple[Tensor, int, int]:
     kh, kw = kernel
     assert height % kh == 0
     assert width % kw == 0
-    
+
     new_height = height // kh
     new_width = width // kw
 
@@ -67,6 +65,7 @@ def avgpool2d(input: Tensor, kernel: Tuple[int, int]) -> Tensor:
         .contiguous()
         .view(output.shape[0], output.shape[1], new_height, new_width)
     )
+
 
 class Max(Function):
     @staticmethod

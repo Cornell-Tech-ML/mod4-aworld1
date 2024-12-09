@@ -1,14 +1,11 @@
 from typing import Tuple, TypeVar, Any
 
-import numpy as np
 from numba import prange
 from numba import njit as _njit
 
 from .autodiff import Context
 from .tensor import Tensor
 from .tensor_data import (
-    MAX_DIMS,
-    Index,
     Shape,
     Strides,
     Storage,
@@ -22,6 +19,7 @@ Fn = TypeVar("Fn")
 
 
 def njit(fn: Fn, **kwargs: Any) -> Fn:
+    """Custom njit function that always inlines the given function."""
     return _njit(inline="always", **kwargs)(fn)  # type: ignore
 
 
@@ -87,8 +85,8 @@ def _tensor_conv1d(
         and in_channels == in_channels_
         and out_channels == out_channels_
     )
-    s1 = input_strides
-    s2 = weight_strides
+    # s1 = input_strides
+    # s2 = weight_strides
 
     s_in_b, s_in_ic, s_in_w = input_strides
     s_wt_oc, s_wt_ic, s_wt_k = weight_strides
@@ -151,6 +149,18 @@ class Conv1dFun(Function):
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
+        """Compute the gradients of the Conv1dFun forward pass.
+
+        Args:
+        ----
+            ctx (Context): The context with saved tensors.
+            grad_output (Tensor): The gradient of the output tensor.
+
+        Returns:
+        -------
+            Tuple[Tensor, Tensor]: Gradients with respect to input and weight.
+
+        """
         input, weight = ctx.saved_values
         batch, in_channels, w = input.shape
         out_channels, in_channels, kw = weight.shape
@@ -237,11 +247,11 @@ def _tensor_conv2d(
         and out_channels == out_channels_
     )
 
-    s1 = input_strides
-    s2 = weight_strides
+    # s1 = input_strides
+    # s2 = weight_strides
     # inners
-    s10, s11, s12, s13 = s1[0], s1[1], s1[2], s1[3]
-    s20, s21, s22, s23 = s2[0], s2[1], s2[2], s2[3]
+    # s10, s11, s12, s13 = s1[0], s1[1], s1[2], s1[3]
+    # s20, s21, s22, s23 = s2[0], s2[1], s2[2], s2[3]
 
     # Unpack strides for clarity
     s_in_b, s_in_ic, s_in_h, s_in_w = input_strides
@@ -272,21 +282,25 @@ def _tensor_conv2d(
 
                                 # Check boundaries
                                 if 0 <= h_in < height and 0 <= w_in < width:
-                                    in_pos = (b * s_in_b
-                                              + ic * s_in_ic
-                                              + h_in * s_in_h
-                                              + w_in * s_in_w)
-                                    wt_pos = (oc * s_wt_oc
-                                              + ic * s_wt_ic
-                                              + kh * s_wt_kh
-                                              + kw_i * s_wt_kw)
+                                    in_pos = (
+                                        b * s_in_b
+                                        + ic * s_in_ic
+                                        + h_in * s_in_h
+                                        + w_in * s_in_w
+                                    )
+                                    wt_pos = (
+                                        oc * s_wt_oc
+                                        + ic * s_wt_ic
+                                        + kh * s_wt_kh
+                                        + kw_i * s_wt_kw
+                                    )
                                     acc += input[in_pos] * weight[wt_pos]
 
-                    out_pos = (b * s_out_b
-                               + oc * s_out_oc
-                               + h_out * s_out_h
-                               + w_out * s_out_w)
+                    out_pos = (
+                        b * s_out_b + oc * s_out_oc + h_out * s_out_h + w_out * s_out_w
+                    )
                     out[out_pos] = acc
+
 
 tensor_conv2d = njit(_tensor_conv2d, parallel=True, fastmath=True)
 
@@ -319,6 +333,18 @@ class Conv2dFun(Function):
 
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
+        """Compute the gradients of the Conv2dFun forward pass.
+
+        Args:
+        ----
+            ctx (Context): The context with saved tensors.
+            grad_output (Tensor): The gradient of the output tensor.
+
+        Returns:
+        -------
+            Tuple[Tensor, Tensor]: Gradients with respect to input and weight.
+
+        """
         input, weight = ctx.saved_values
         batch, in_channels, h, w = input.shape
         out_channels, in_channels, kh, kw = weight.shape
