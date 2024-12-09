@@ -90,8 +90,32 @@ def _tensor_conv1d(
     s1 = input_strides
     s2 = weight_strides
 
-    # TODO: Implement for Task 4.1.
-    raise NotImplementedError("Need to implement for Task 4.1")
+    s_in_b, s_in_ic, s_in_w = input_strides
+    s_wt_oc, s_wt_ic, s_wt_k = weight_strides
+    s_out_b, s_out_oc, s_out_w = out_strides
+
+    # Parallelize over out tensor size if possible
+    for b in prange(batch_):
+        for oc in range(out_channels):
+            for w_out in range(out_width):
+                acc = 0.0
+                for ic in range(in_channels):
+                    for k in range(kw):
+                        if reverse:
+                            # Kernel anchored to the right: input index w_in = w_out - k
+                            w_in = w_out - k
+                        else:
+                            # Kernel anchored to the left: input index w_in = w_out + k
+                            w_in = w_out + k
+
+                        # Check boundary conditions (zero-padding)
+                        if 0 <= w_in < width:
+                            in_pos = b * s_in_b + ic * s_in_ic + w_in * s_in_w
+                            wt_pos = oc * s_wt_oc + ic * s_wt_ic + k * s_wt_k
+                            acc += input[in_pos] * weight[wt_pos]
+
+                out_pos = b * s_out_b + oc * s_out_oc + w_out * s_out_w
+                out[out_pos] = acc
 
 
 tensor_conv1d = njit(_tensor_conv1d, parallel=True)
@@ -219,9 +243,50 @@ def _tensor_conv2d(
     s10, s11, s12, s13 = s1[0], s1[1], s1[2], s1[3]
     s20, s21, s22, s23 = s2[0], s2[1], s2[2], s2[3]
 
-    # TODO: Implement for Task 4.2.
-    raise NotImplementedError("Need to implement for Task 4.2")
+    # Unpack strides for clarity
+    s_in_b, s_in_ic, s_in_h, s_in_w = input_strides
+    s_wt_oc, s_wt_ic, s_wt_kh, s_wt_kw = weight_strides
+    s_out_b, s_out_oc, s_out_h, s_out_w = out_strides
 
+    batch_, out_channels, out_height, out_width = out_shape
+    batch, in_channels, height, width = input_shape
+    out_channels_, in_channels_, k_height, k_width = weight_shape
+
+    # Parallelize over the output size
+    for b in prange(batch_):
+        for oc in range(out_channels):
+            for h_out in range(out_height):
+                for w_out in range(out_width):
+                    acc = 0.0
+                    for ic in range(in_channels):
+                        for kh in range(k_height):
+                            for kw_i in range(k_width):
+                                if reverse:
+                                    # Kernel anchored at bottom-right
+                                    h_in = h_out - kh
+                                    w_in = w_out - kw_i
+                                else:
+                                    # Kernel anchored at top-left
+                                    h_in = h_out + kh
+                                    w_in = w_out + kw_i
+
+                                # Check boundaries
+                                if 0 <= h_in < height and 0 <= w_in < width:
+                                    in_pos = (b * s_in_b
+                                              + ic * s_in_ic
+                                              + h_in * s_in_h
+                                              + w_in * s_in_w)
+                                    wt_pos = (oc * s_wt_oc
+                                              + ic * s_wt_ic
+                                              + kh * s_wt_kh
+                                              + kw_i * s_wt_kw)
+                                    acc += input[in_pos] * weight[wt_pos]
+
+                    out_pos = (b * s_out_b
+                               + oc * s_out_oc
+                               + h_out * s_out_h
+                               + w_out * s_out_w)
+                    out[out_pos] = acc
 
 tensor_conv2d = njit(_tensor_conv2d, parallel=True, fastmath=True)
 

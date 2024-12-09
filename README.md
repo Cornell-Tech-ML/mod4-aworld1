@@ -9,6 +9,14 @@
 This module requires `fast_ops.py`, `cuda_ops.py`, `scalar.py`, `tensor_functions.py`, `tensor_data.py`, `tensor_ops.py`, `operators.py`, `module.py`, and `autodiff.py` from Module 3.
 
 
+## MNIST Output Log
+
+You can view the [MNIST output log](logs/mnist.txt), which is the result of running `run_mnist_multiclass.py`. The model achieves an accuracy of 16/16 early on and maintains it until the final epoch 25.
+
+## Sentiment Output Log
+
+You can view the [Sentiment output log](logs/sentiment.txt), which is the result of running `run_sentiment_classifier.py`. The model demonstrates its performance over multiple epochs, reaching a high validation percentage of 71% (above required 70%).
+
 Additionally you will need to install and download the MNist library.
 
 (On Mac, this may require installing the `wget` command)
